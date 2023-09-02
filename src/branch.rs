@@ -63,6 +63,18 @@ pub struct Branch {
 
     /// Reactive power injected at "to" bus end (MVAr).
     pub qt: Option<f64>,
+
+    /// Kuhn-Tucker multiplier on MVA limit at "from" bus (u/MVA).
+    pub mu_sf: Option<f64>,
+
+    /// Kuhn-Tucker multiplier on MVA limit at "to" bus (u/MVA).
+    pub mu_st: Option<f64>,
+
+    /// Kuhn-Tucker multiplier lower angle difference limit (u/degree).
+    pub mu_angmin: Option<f64>,
+
+    /// Kuhn-Tucker multiplier upper angle difference limit (u/degree).
+    pub mu_angmax: Option<f64>,
 }
 
 impl Branch {
@@ -74,5 +86,24 @@ impl Branch {
     /// Branch is out-of-service.
     pub fn is_off(&self) -> bool {
         self.status == 0
+    }
+
+    /// Branch is a transformer.
+    pub fn is_transformer(&self) -> bool {
+        self.tap != 0.0
+    }
+
+    /// Is power flow result.
+    pub fn is_pf(&self) -> bool {
+        self.pf.is_some() && self.qf.is_some() && self.pt.is_some() && self.qt.is_some()
+    }
+
+    /// Is Optimal Power Flow (OPF) result.
+    pub fn is_opf(&self) -> bool {
+        self.is_pf()
+            && self.mu_sf.is_some()
+            && self.mu_sf.is_some()
+            && self.mu_angmin.is_some()
+            && self.mu_angmax.is_some()
     }
 }

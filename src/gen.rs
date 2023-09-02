@@ -102,7 +102,7 @@ impl Gen {
         self.pmin < 0.0 && self.pmax == 0.0
     }
 
-    /// Is Optimal Power Flow result.
+    /// Is Optimal Power Flow (OPF) result.
     pub fn is_opf(&self) -> bool {
         self.mu_pmax.is_some()
             && self.mu_pmin.is_some()

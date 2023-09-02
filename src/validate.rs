@@ -176,6 +176,46 @@ pub(crate) fn validate_branch(br: &Branch) -> Result<(), ValidationError> {
         }
     }
 
+    let opf = vec![br.mu_sf, br.mu_st, br.mu_angmin, br.mu_angmax];
+    if opf.iter().any(|a| a.is_some()) {
+        if !anglim.iter().all(|a| a.is_some()) {
+            let mut err = ValidationError::new("angle limits must be set if opf results are set");
+            err.add_param("angmin".into(), &br.angmin);
+            err.add_param("angmax".into(), &br.angmax);
+
+            err.add_param("mu_sf".into(), &br.mu_sf);
+            err.add_param("mu_st".into(), &br.mu_st);
+            err.add_param("mu_angmin".into(), &br.mu_angmin);
+            err.add_param("mu_angmax".into(), &br.mu_angmax);
+            return Err(err);
+        }
+
+        if !flows.iter().all(|a| a.is_some()) {
+            let mut err =
+                ValidationError::new("all branch flows must be set if opf results are set");
+            err.add_param("pf".into(), &br.pf);
+            err.add_param("qf".into(), &br.qf);
+            err.add_param("pt".into(), &br.pt);
+            err.add_param("qt".into(), &br.qt);
+
+            err.add_param("mu_sf".into(), &br.mu_sf);
+            err.add_param("mu_st".into(), &br.mu_st);
+            err.add_param("mu_angmin".into(), &br.mu_angmin);
+            err.add_param("mu_angmax".into(), &br.mu_angmax);
+            return Err(err);
+        }
+
+        if !opf.iter().all(|a| a.is_some()) {
+            let mut err =
+                ValidationError::new("all opf results must be set if one opf result is set");
+            err.add_param("mu_sf".into(), &br.mu_sf);
+            err.add_param("mu_st".into(), &br.mu_st);
+            err.add_param("mu_angmin".into(), &br.mu_angmin);
+            err.add_param("mu_angmax".into(), &br.mu_angmax);
+            return Err(err);
+        }
+    }
+
     Ok(())
 }
 
