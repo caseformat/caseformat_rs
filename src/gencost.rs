@@ -1,41 +1,62 @@
 use csv::StringRecord;
+use derive_builder::Builder;
 use validator::Validate;
 
+/// Piecewise linear cost model.
+pub const PW_LINEAR: usize = 1;
+/// Polynomial cost model.
+pub const POLYNOMIAL: usize = 2;
+
 /// Generator cost function.
-#[derive(Clone, Debug, Validate)]
+#[derive(Clone, Debug, Validate, Builder)]
+#[builder(setter(into))]
 #[validate(schema(function = "crate::validate::validate_gencost"))]
 pub struct GenCost {
     /// Cost function model.
+    #[builder(default = "POLYNOMIAL")]
     #[validate(range(min = 1, max = 2))]
     pub model: usize,
 
     /// Startup cost (US dollars).
+    #[builder(default)]
     pub startup: f64,
 
     /// Shutdown cost (US dollars).
+    #[builder(default)]
     pub shutdown: f64,
 
     /// Number of end/breakpoints in piecewise linear cost function
     /// or coefficients in polynomial cost function.
+    #[builder(setter(into = false))]
     #[validate(range(min = 1))]
     pub ncost: usize,
 
     /// Piecewise linear cost function end/breakpoints.
+    #[builder(setter(strip_option, each(name = "point")), default)]
     pub points: Option<Vec<(f64, f64)>>,
 
     /// Polynomial cost function coefficients.
+    #[builder(setter(strip_option, each(name = "coeff")), default)]
     pub coeffs: Option<Vec<f64>>,
 }
 
 impl GenCost {
+    /// Build new [GenCost].
+    pub fn new(model: usize) -> GenCostBuilder {
+        GenCostBuilder {
+            model: Some(model),
+            ..Default::default()
+        }
+    }
+
     /// Piecewise linear cost function.
     pub fn is_pwl(&self) -> bool {
-        self.model == 1
+        self.model == PW_LINEAR
     }
 
     /// Polynomial cost function.
     pub fn is_polynomial(&self) -> bool {
-        self.model == 2
+        self.model == POLYNOMIAL
     }
 
     pub(crate) fn from_string_record(record: StringRecord) -> Result<Self, String> {

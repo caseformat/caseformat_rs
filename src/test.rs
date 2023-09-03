@@ -1,7 +1,7 @@
 use std::path::Path;
 use validator::Validate;
 
-use crate::{read_dir, read_zip};
+use crate::read::{read_dir, read_zip};
 
 #[test]
 fn test_read_dir() {
