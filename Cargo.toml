@@ -10,3 +10,5 @@ validator = { version = "0.16.1", features = ["derive"] }
 derive_builder = "0.12"
 zip = "0.6.6"
 
+[dev-dependencies]
+anyhow = "1"
