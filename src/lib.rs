@@ -16,11 +16,13 @@ pub mod validate;
 mod test;
 
 pub use branch::Branch;
-pub use bus::{Bus, PQ, PV, REF};
+pub use bus::Bus;
+pub use bus::{NONE, PQ, PV, REF};
 pub use case::Case;
 pub use dcline::DCLine;
 pub use gen::Gen;
-pub use gencost::{GenCost, POLYNOMIAL, PW_LINEAR};
+pub use gencost::GenCost;
+pub use gencost::{POLYNOMIAL, PW_LINEAR};
 
 /// Out-of-service status.
 pub const OUT_OF_SERVICE: usize = 0;

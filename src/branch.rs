@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 /// Transmission line/cable or two winding transformer.
-#[derive(Serialize, Deserialize, Validate, Clone, Debug, Builder)]
+#[derive(Serialize, Deserialize, Validate, Clone, Debug, Builder, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[builder(setter(into))]
 #[validate(schema(function = "crate::validate::validate_branch"))]

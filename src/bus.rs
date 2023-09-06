@@ -8,8 +8,10 @@ pub const PQ: usize = 1;
 pub const PV: usize = 2;
 /// Reference bus type.
 pub const REF: usize = 3;
+/// Isolated bus type.
+pub const NONE: usize = 4;
 
-#[derive(Serialize, Deserialize, Validate, Clone, Debug, Builder)]
+#[derive(Serialize, Deserialize, Validate, Clone, Debug, Builder, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[builder(setter(into))]
 pub struct Bus {
@@ -105,6 +107,11 @@ impl Bus {
     /// Voltage angle reference. Slack active and reactive power.
     pub fn is_ref(&self) -> bool {
         self.bus_type == 3
+    }
+
+    /// Isolated bus.
+    pub fn is_isolated(&self) -> bool {
+        !(self.is_pq() || self.is_pv() || self.is_ref())
     }
 
     /// Is OPF result.

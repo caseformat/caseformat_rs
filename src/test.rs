@@ -22,25 +22,16 @@ fn test_read_dir() {
     assert!(!buses.iter().any(|bus| bus.is_opf()));
     assert_eq!(buses.iter().filter(|bus| bus.is_ref()).count(), 1);
 
-    assert!(gen.is_some());
-    if let Some(gen) = gen {
-        assert_eq!(gen.len(), 3);
-        assert!(gen.iter().all(|g| g.validate().is_ok()));
-    }
+    assert_eq!(gen.len(), 3);
+    assert!(gen.iter().all(|g| g.validate().is_ok()));
 
-    assert!(branch.is_some());
-    if let Some(branch) = branch {
-        assert_eq!(branch.len(), 9);
-        assert!(branch.iter().all(|br| br.validate().is_ok()));
-    }
+    assert_eq!(branch.len(), 9);
+    assert!(branch.iter().all(|br| br.validate().is_ok()));
 
-    assert!(gencost.is_some());
-    if let Some(gencost) = gencost {
-        assert_eq!(gencost.len(), 3);
-        assert!(gencost.iter().all(|c| c.validate().is_ok()));
-    }
+    assert_eq!(gencost.len(), 3);
+    assert!(gencost.iter().all(|c| c.validate().is_ok()));
 
-    assert!(dcline.is_none());
+    assert!(dcline.is_empty());
 }
 
 #[test]
@@ -62,23 +53,14 @@ fn test_read_zip() {
     assert!(!buses.iter().any(|bus| bus.is_opf()));
     assert_eq!(buses.iter().filter(|bus| bus.is_ref()).count(), 1);
 
-    assert!(gen.is_some());
-    if let Some(gen) = gen {
-        assert_eq!(gen.len(), 5);
-        assert!(gen.iter().all(|g| g.validate().is_ok()));
-    }
+    assert_eq!(gen.len(), 5);
+    assert!(gen.iter().all(|g| g.validate().is_ok()));
 
-    assert!(branch.is_some());
-    if let Some(branch) = branch {
-        assert_eq!(branch.len(), 20);
-        assert!(branch.iter().all(|br| br.validate().is_ok()));
-    }
+    assert_eq!(branch.len(), 20);
+    assert!(branch.iter().all(|br| br.validate().is_ok()));
 
-    assert!(gencost.is_some());
-    if let Some(gencost) = gencost {
-        assert_eq!(gencost.len(), 5);
-        assert!(gencost.iter().all(|c| c.validate().is_ok()));
-    }
+    assert_eq!(gencost.len(), 5);
+    assert!(gencost.iter().all(|c| c.validate().is_ok()));
 
-    assert!(dcline.is_none());
+    assert!(dcline.is_empty());
 }

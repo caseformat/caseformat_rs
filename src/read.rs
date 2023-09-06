@@ -1,3 +1,4 @@
+use anyhow::{format_err, Result};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -15,17 +16,14 @@ const DCLINE_FILE: &str = "dcline.csv";
 
 pub fn read_zip(
     zip_path: &PathBuf,
-) -> Result<
-    (
-        Case,
-        Vec<Bus>,
-        Option<Vec<Gen>>,
-        Option<Vec<Branch>>,
-        Option<Vec<GenCost>>,
-        Option<Vec<DCLine>>,
-    ),
-    String,
-> {
+) -> Result<(
+    Case,
+    Vec<Bus>,
+    Vec<Gen>,
+    Vec<Branch>,
+    Vec<GenCost>,
+    Vec<DCLine>,
+)> {
     let file = File::open(zip_path).expect("Unable to open input file");
     let reader = BufReader::new(file);
     let mut zip_archive = ZipArchive::new(reader).unwrap();
@@ -34,16 +32,16 @@ pub fn read_zip(
         Ok(case_file) => read_case_file(case_file)?,
         Err(zip_err) => match zip_err {
             ZipError::Io(err) => {
-                return Err(format!("case file I/O error: {}", err));
+                return Err(format_err!("case file I/O error: {}", err));
             }
             ZipError::InvalidArchive(err) => {
-                return Err(format!("case file invalid archive error: {}", err));
+                return Err(format_err!("case file invalid archive error: {}", err));
             }
             ZipError::UnsupportedArchive(err) => {
-                return Err(format!("case file unsupported archive error: {}", err));
+                return Err(format_err!("case file unsupported archive error: {}", err));
             }
             ZipError::FileNotFound => {
-                return Err(format!("zip archive must contain {} file", CASE_FILE));
+                return Err(format_err!("zip archive must contain {} file", CASE_FILE));
             }
         },
     };
@@ -52,81 +50,90 @@ pub fn read_zip(
         Ok(bus_file) => read_bus_file(bus_file)?,
         Err(zip_err) => match zip_err {
             ZipError::Io(err) => {
-                return Err(format!("bus file I/O error: {}", err));
+                return Err(format_err!("bus file I/O error: {}", err));
             }
             ZipError::InvalidArchive(err) => {
-                return Err(format!("bus file invalid archive error: {}", err));
+                return Err(format_err!("bus file invalid archive error: {}", err));
             }
             ZipError::UnsupportedArchive(err) => {
-                return Err(format!("bus file unsupported archive error: {}", err));
+                return Err(format_err!("bus file unsupported archive error: {}", err));
             }
             ZipError::FileNotFound => {
-                return Err(format!("zip archive must contain {} file", BUS_FILE));
+                return Err(format_err!("zip archive must contain {} file", BUS_FILE));
             }
         },
     };
 
     let gen = match zip_archive.by_name(GEN_FILE) {
-        Ok(gen_file) => Some(read_gen_file(gen_file)?),
+        Ok(gen_file) => read_gen_file(gen_file)?,
         Err(zip_err) => match zip_err {
             ZipError::Io(err) => {
-                return Err(format!("gen file I/O error: {}", err));
+                return Err(format_err!("gen file I/O error: {}", err));
             }
             ZipError::InvalidArchive(err) => {
-                return Err(format!("gen file invalid archive error: {}", err));
+                return Err(format_err!("gen file invalid archive error: {}", err));
             }
             ZipError::UnsupportedArchive(err) => {
-                return Err(format!("gen file unsupported archive error: {}", err));
+                return Err(format_err!("gen file unsupported archive error: {}", err));
             }
-            ZipError::FileNotFound => None,
+            ZipError::FileNotFound => Vec::default(),
         },
     };
 
     let branch = match zip_archive.by_name(BRANCH_FILE) {
-        Ok(branch_file) => Some(read_branch_file(branch_file)?),
+        Ok(branch_file) => read_branch_file(branch_file)?,
         Err(zip_err) => match zip_err {
             ZipError::Io(err) => {
-                return Err(format!("branch file I/O error: {}", err));
+                return Err(format_err!("branch file I/O error: {}", err));
             }
             ZipError::InvalidArchive(err) => {
-                return Err(format!("branch file invalid archive error: {}", err));
+                return Err(format_err!("branch file invalid archive error: {}", err));
             }
             ZipError::UnsupportedArchive(err) => {
-                return Err(format!("branch file unsupported archive error: {}", err));
+                return Err(format_err!(
+                    "branch file unsupported archive error: {}",
+                    err
+                ));
             }
-            ZipError::FileNotFound => None,
+            ZipError::FileNotFound => Vec::default(),
         },
     };
 
     let gencost = match zip_archive.by_name(GENCOST_FILE) {
-        Ok(gencost_file) => Some(read_gencost_file(gencost_file)?),
+        Ok(gencost_file) => read_gencost_file(gencost_file)?,
         Err(zip_err) => match zip_err {
             ZipError::Io(err) => {
-                return Err(format!("gencost file I/O error: {}", err));
+                return Err(format_err!("gencost file I/O error: {}", err));
             }
             ZipError::InvalidArchive(err) => {
-                return Err(format!("gencost file invalid archive error: {}", err));
+                return Err(format_err!("gencost file invalid archive error: {}", err));
             }
             ZipError::UnsupportedArchive(err) => {
-                return Err(format!("gencost file unsupported archive error: {}", err));
+                return Err(format_err!(
+                    "gencost file unsupported archive error: {}",
+                    err
+                ));
             }
-            ZipError::FileNotFound => None,
+            ZipError::FileNotFound => Vec::default(),
         },
     };
 
     let dcline = match zip_archive.by_name(DCLINE_FILE) {
-        Ok(dcline_file) => Some(read_dcline_file(dcline_file)?),
+        Ok(dcline_file) => read_dcline_file(dcline_file)?,
         Err(zip_err) => match zip_err {
             ZipError::Io(err) => {
-                return Err(format!("dcline file I/O error: {}", err));
+                return Err(format_err!("dcline file I/O error: {}", err));
             }
             ZipError::InvalidArchive(err) => {
-                return Err(format!("dcline file invalid archive error: {}", err));
+                return Err(format_err!("dcline file invalid archive error: {}", err));
             }
             ZipError::UnsupportedArchive(err) => {
-                return Err(format!("dcline file unsupported archive error: {}", err));
+                return Err(format_err!(
+                    "dcline file unsupported archive error: {}",
+                    err
+                ));
             }
-            ZipError::FileNotFound => None,
+            ZipError::FileNotFound => Vec::default(),
         },
     };
 
@@ -135,170 +142,112 @@ pub fn read_zip(
 
 pub fn read_dir(
     dir_path: &PathBuf,
-) -> Result<
-    (
-        Case,
-        Vec<Bus>,
-        Option<Vec<Gen>>,
-        Option<Vec<Branch>>,
-        Option<Vec<GenCost>>,
-        Option<Vec<DCLine>>,
-    ),
-    String,
-> {
+) -> Result<(
+    Case,
+    Vec<Bus>,
+    Vec<Gen>,
+    Vec<Branch>,
+    Vec<GenCost>,
+    Vec<DCLine>,
+)> {
     let case_path = dir_path.join(Path::new(CASE_FILE));
-    let case = match File::open(case_path) {
-        Ok(case_file) => read_case_file(case_file)?,
-        Err(err) => {
-            return Err(format!("case file error: {}", err));
-        }
-    };
+    let case_file = File::open(case_path)?;
+    let case = read_case_file(case_file)?;
 
     let bus_path = dir_path.join(Path::new(BUS_FILE));
-    let bus = match File::open(bus_path) {
-        Ok(bus_file) => read_bus_file(bus_file)?,
-        Err(err) => {
-            return Err(format!("bus file error: {}", err));
-        }
-    };
+    let bus_file = File::open(bus_path)?;
+    let bus = read_bus_file(bus_file)?;
 
     let gen_path = dir_path.join(Path::new(GEN_FILE));
     let gen = if gen_path.exists() {
-        match File::open(gen_path) {
-            Ok(gen_file) => Some(read_gen_file(gen_file)?),
-            Err(err) => {
-                return Err(format!("gen file error: {}", err));
-            }
-        }
+        let gen_file = File::open(gen_path)?;
+        read_gen_file(gen_file)?
     } else {
-        None
+        Vec::default()
     };
 
     let branch_path = dir_path.join(Path::new(BRANCH_FILE));
     let branch = if branch_path.exists() {
-        match File::open(branch_path) {
-            Ok(branch_file) => Some(read_branch_file(branch_file)?),
-            Err(err) => {
-                return Err(format!("branch file error: {}", err));
-            }
-        }
+        let branch_file = File::open(branch_path)?;
+        read_branch_file(branch_file)?
     } else {
-        None
+        Vec::default()
     };
 
     let gencost_path = dir_path.join(Path::new(GENCOST_FILE));
     let gencost = if gencost_path.exists() {
-        match File::open(gencost_path) {
-            Ok(gencost_file) => Some(read_gencost_file(gencost_file)?),
-            Err(err) => {
-                return Err(format!("gencost file error: {}", err));
-            }
-        }
+        let gencost_file = File::open(gencost_path)?;
+        read_gencost_file(gencost_file)?
     } else {
-        None
+        Vec::default()
     };
 
     let dcline_path = dir_path.join(Path::new(DCLINE_FILE));
     let dcline = if dcline_path.exists() {
-        match File::open(dcline_path) {
-            Ok(dcline_file) => Some(read_dcline_file(dcline_file)?),
-            Err(err) => {
-                return Err(format!("dcline file error: {}", err));
-            }
-        }
+        let dcline_file = File::open(dcline_path)?;
+        read_dcline_file(dcline_file)?
     } else {
-        None
+        Vec::default()
     };
 
     Ok((case, bus, gen, branch, gencost, dcline))
 }
 
-fn read_case_file(file_reader: impl Read) -> Result<Case, String> {
+fn read_case_file(file_reader: impl Read) -> Result<Case> {
     let mut reader = csv::Reader::from_reader(file_reader);
     let case: Case = match reader.deserialize().next() {
-        Some(result) => match result {
-            Ok(case) => case,
-            Err(err) => {
-                return Err(format!("case record parse error: {}", err));
-            }
-        },
+        Some(result) => result?,
         None => {
-            return Err("case record must exist".to_string());
+            return Err(format_err!("one case record must exist"));
         }
     };
     Ok(case)
 }
 
-fn read_bus_file(file_reader: impl Read) -> Result<Vec<Bus>, String> {
+fn read_bus_file(file_reader: impl Read) -> Result<Vec<Bus>> {
     let mut csv_reader = csv::Reader::from_reader(file_reader);
     let mut bus = Vec::new();
     for result in csv_reader.deserialize() {
-        bus.push(match result {
-            Ok(bus) => bus,
-            Err(err) => {
-                return Err(format!("bus record parse error: {}", err));
-            }
-        });
+        bus.push(result?);
     }
     Ok(bus)
 }
 
-fn read_gen_file(file_reader: impl Read) -> Result<Vec<Gen>, String> {
+fn read_gen_file(file_reader: impl Read) -> Result<Vec<Gen>> {
     let mut csv_reader = csv::Reader::from_reader(file_reader);
     let mut gen = Vec::new();
     for result in csv_reader.deserialize() {
-        gen.push(match result {
-            Ok(g) => g,
-            Err(err) => {
-                return Err(format!("gen record parse error: {}", err));
-            }
-        });
+        gen.push(result?);
     }
     Ok(gen)
 }
 
-fn read_branch_file(file_reader: impl Read) -> Result<Vec<Branch>, String> {
+fn read_branch_file(file_reader: impl Read) -> Result<Vec<Branch>> {
     let mut csv_reader = csv::Reader::from_reader(file_reader);
     let mut branch = Vec::new();
     for result in csv_reader.deserialize() {
-        branch.push(match result {
-            Ok(br) => br,
-            Err(err) => {
-                return Err(format!("branch record parse error: {}", err));
-            }
-        });
+        branch.push(result?);
     }
     Ok(branch)
 }
 
-fn read_gencost_file(file_reader: impl Read) -> Result<Vec<GenCost>, String> {
+fn read_gencost_file(file_reader: impl Read) -> Result<Vec<GenCost>> {
     let mut csv_reader = csv::Reader::from_reader(file_reader);
     let mut gencost = Vec::new();
     for result in csv_reader.records() {
-        match result {
-            Ok(record) => {
-                gencost.push(GenCost::from_string_record(record)?);
-                // match GenCost::from_string_record(record) {
-                //     Ok(cost) => {cost}
-                //     Err(err) => {}
-                // }
-            }
-            Err(err) => {
-                return Err(format!("gencost record parse error: {}", err));
-            }
-        }
+        gencost.push(GenCost::from_string_record(result?)?);
     }
     Ok(gencost)
 }
 
-fn read_dcline_file(file_reader: impl Read) -> Result<Vec<DCLine>, String> {
+fn read_dcline_file(file_reader: impl Read) -> Result<Vec<DCLine>> {
     let mut csv_reader = csv::Reader::from_reader(file_reader);
     let mut dcline = Vec::new();
     for result in csv_reader.deserialize() {
         dcline.push(match result {
             Ok(ln) => ln,
             Err(err) => {
-                return Err(format!("dcline record parse error: {}", err));
+                return Err(format_err!("dcline record parse error: {}", err));
             }
         });
     }
