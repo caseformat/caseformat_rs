@@ -60,6 +60,32 @@ impl GenCost {
         self.model == POLYNOMIAL
     }
 
+    pub(crate) fn to_string_record(&self) -> StringRecord {
+        let mut record = StringRecord::new();
+
+        record.push_field(&format!("{}", self.model));
+        record.push_field(&format!("{}", self.startup));
+        record.push_field(&format!("{}", self.shutdown));
+        record.push_field(&format!("{}", self.ncost));
+
+        if self.is_pwl() {
+            if let Some(points) = &self.points {
+                for (p, f) in points {
+                    record.push_field(&format!("{}", p));
+                    record.push_field(&format!("{}", f));
+                }
+            }
+        } else if self.is_polynomial() {
+            if let Some(coeffs) = &self.coeffs {
+                for coeff in coeffs {
+                    record.push_field(&format!("{}", coeff));
+                }
+            }
+        }
+
+        StringRecord::from(record)
+    }
+
     pub(crate) fn from_string_record(record: StringRecord) -> Result<Self> {
         let mut iter = record.iter();
 

@@ -1,21 +1,41 @@
-use casecsv::{Branch, Bus, Case, Gen, REF};
+use std::path::Path;
+
+use casecsv::{write::write_zip, Branch, Bus, Case, Gen, REF};
 
 fn main() {
-    match entsoe2() {
-        Ok((_case, _bus, _gen, _branch)) => {
-            const _P_GRID: f64 = 0.763;
-            const _Q_GRID: f64 = 1.209;
-        }
-        Err(err) => {
-            eprintln!("entsoe2 error: {}", err);
-            std::process::exit(2);
-        }
+    if let Err(err) = run() {
+        eprintln!("error: {}", err);
+        std::process::exit(2);
     }
+}
+
+fn run() -> anyhow::Result<()> {
+    let (case, bus, gen, branch) = entsoe2()?;
+
+    const _P_GRID: f64 = 0.763;
+    const _Q_GRID: f64 = 1.209;
+
+    let zip_path = Path::new("entsoe2.case");
+    write_zip(
+        &zip_path.to_path_buf(),
+        &case,
+        &bus,
+        &gen,
+        &branch,
+        &Vec::default(),
+        &Vec::default(),
+        Some(
+            "2-bus test case from \"Controller Tests in Test Grid Configurations\"
+by ENTSO-E System Protection and Dynamics, Nov 2013.",
+        ),
+    )?;
+
+    Ok(())
 }
 
 // A 2-bus test case from "Controller Tests in Test Grid Configurations"
 // by ENTSO-E System Protection and Dynamics, Nov 2013.
-fn entsoe2() -> Result<(Case, Vec<Bus>, Vec<Gen>, Vec<Branch>), anyhow::Error> {
+fn entsoe2() -> anyhow::Result<(Case, Vec<Bus>, Vec<Gen>, Vec<Branch>)> {
     // System MVA base
     const SB: f64 = 100.0;
 

@@ -2,17 +2,16 @@ use anyhow::{format_err, Result};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use zip::result::ZipError;
-use zip::ZipArchive;
+use zip::{result::ZipError, ZipArchive};
 
 use crate::{Branch, Bus, Case, DCLine, Gen, GenCost};
 
-const CASE_FILE: &str = "case.csv";
-const BUS_FILE: &str = "bus.csv";
-const GEN_FILE: &str = "gen.csv";
-const BRANCH_FILE: &str = "branch.csv";
-const GENCOST_FILE: &str = "gencost.csv";
-const DCLINE_FILE: &str = "dcline.csv";
+pub(crate) const CASE_FILE: &str = "case.csv";
+pub(crate) const BUS_FILE: &str = "bus.csv";
+pub(crate) const GEN_FILE: &str = "gen.csv";
+pub(crate) const BRANCH_FILE: &str = "branch.csv";
+pub(crate) const GENCOST_FILE: &str = "gencost.csv";
+pub(crate) const DCLINE_FILE: &str = "dcline.csv";
 
 pub fn read_zip(
     zip_path: &PathBuf,

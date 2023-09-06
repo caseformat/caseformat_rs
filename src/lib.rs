@@ -10,6 +10,8 @@ mod gen;
 mod gencost;
 
 pub mod read;
+pub mod write;
+
 pub mod validate;
 
 #[cfg(test)]
