@@ -6,5 +6,5 @@ wasm:
 pyo3:
 	maturin build -F pyo3
 	
-clean:
+distclean:
 	rm -rf ./pkg

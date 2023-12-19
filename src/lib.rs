@@ -15,6 +15,8 @@ mod gencost;
 mod read;
 mod write;
 
+mod mpc;
+
 pub mod validate;
 
 #[cfg(feature = "dataset")]
@@ -31,6 +33,7 @@ pub use dcline::DCLine;
 pub use gen::Gen;
 pub use gencost::GenCost;
 pub use gencost::{POLYNOMIAL, PW_LINEAR};
+pub use mpc::write_mpc;
 pub use read::{read_dir, read_zip};
 pub use write::{write_dir, write_zip};
 

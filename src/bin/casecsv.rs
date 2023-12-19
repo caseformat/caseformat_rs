@@ -80,6 +80,10 @@ fn execute(cli: &Cli) -> Result<()> {
                     serde_json::to_writer(file, &dataset)?;
                 }
             }
+            Some("m") => {
+                let file = File::create(&cli.output)?;
+                casecsv::write_mpc(file, &case, &bus, &gen, &branch, &gencost, &dcline)?;
+            }
             Some("case") | Some("zip") => {
                 let file = File::create(&cli.output)?;
                 casecsv::write_zip(

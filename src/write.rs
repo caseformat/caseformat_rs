@@ -242,16 +242,16 @@ fn write_dcline<W: Write>(wtr: W, dcline: &[DCLine]) -> Result<W> {
 const CASE_HEADER: [&str; 3] = ["CASENAME", "VERSION", "BASE_MVA"];
 const CASE_HEADER_F: [&str; 4] = ["CASENAME", "VERSION", "BASE_MVA", "F"];
 
-const BUS_HEADER: [&str; 13] = [
+pub(crate) const BUS_HEADER: [&str; 13] = [
     "BUS_I", "BUS_TYPE", "PD", "QD", "GS", "BS", "BUS_AREA", "VM", "VA", "BASE_KV", "ZONE", "VMAX",
     "VMIN",
 ];
-const BUS_HEADER_OPF: [&str; 17] = [
+pub(crate) const BUS_HEADER_OPF: [&str; 17] = [
     "BUS_I", "BUS_TYPE", "PD", "QD", "GS", "BS", "BUS_AREA", "VM", "VA", "BASE_KV", "ZONE", "VMAX",
     "VMIN", "LAM_P", "LAM_Q", "MU_VMAX", "MU_VMIN",
 ];
 
-const GEN_HEADER: [&str; 10] = [
+pub(crate) const GEN_HEADER: [&str; 10] = [
     "GEN_BUS",
     "PG",
     "QG",
@@ -263,7 +263,7 @@ const GEN_HEADER: [&str; 10] = [
     "PMAX",
     "PMIN",
 ];
-const GEN_HEADER_2: [&str; 21] = [
+pub(crate) const GEN_HEADER_2: [&str; 21] = [
     "GEN_BUS",
     "PG",
     "QG",
@@ -286,7 +286,7 @@ const GEN_HEADER_2: [&str; 21] = [
     "RAMP_Q",
     "APF",
 ];
-const GEN_HEADER_OPF: [&str; 25] = [
+pub(crate) const GEN_HEADER_OPF: [&str; 25] = [
     "GEN_BUS",
     "PG",
     "QG",
@@ -314,7 +314,7 @@ const GEN_HEADER_OPF: [&str; 25] = [
     "MU_QMIN",
 ];
 
-const BRANCH_HEADER: [&str; 13] = [
+pub(crate) const BRANCH_HEADER: [&str; 13] = [
     "F_BUS",
     "T_BUS",
     "BR_R",
@@ -329,7 +329,7 @@ const BRANCH_HEADER: [&str; 13] = [
     "ANGMIN",
     "ANGMAX",
 ];
-const BRANCH_HEADER_PF: [&str; 17] = [
+pub(crate) const BRANCH_HEADER_PF: [&str; 17] = [
     "F_BUS",
     "T_BUS",
     "BR_R",
@@ -348,7 +348,7 @@ const BRANCH_HEADER_PF: [&str; 17] = [
     "PT",
     "QT",
 ];
-const BRANCH_HEADER_OPF: [&str; 21] = [
+pub(crate) const BRANCH_HEADER_OPF: [&str; 21] = [
     "F_BUS",
     "T_BUS",
     "BR_R",
@@ -374,9 +374,9 @@ const BRANCH_HEADER_OPF: [&str; 21] = [
 
 // , "C2", "C1", "C0"
 // , "X1", "Y1", "X2", "Y2", "X3", "Y3", "X4", "Y4"
-const GENCOST_HEADER: [&str; 4] = ["MODEL", "STARTUP", "SHUTDOWN", "NCOST"];
+pub(crate) const GENCOST_HEADER: [&str; 4] = ["MODEL", "STARTUP", "SHUTDOWN", "NCOST"];
 
-const DCLINE_HEADER: [&str; 17] = [
+pub(crate) const DCLINE_HEADER: [&str; 17] = [
     "F_BUS",
     "T_BUS",
     "BR_STATUS",
@@ -395,8 +395,7 @@ const DCLINE_HEADER: [&str; 17] = [
     "LOSS0",
     "LOSS1",
 ];
-
-const DCLINE_HEADER_OPF: [&str; 23] = [
+pub(crate) const DCLINE_HEADER_OPF: [&str; 23] = [
     "F_BUS",
     "T_BUS",
     "BR_STATUS",
