@@ -1,7 +1,11 @@
 use anyhow::{format_err, Result};
 use csv::StringRecord;
 use derive_builder::Builder;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
+
+#[cfg(target_arch = "wasm32")]
+use tsify::Tsify;
 
 /// Piecewise linear cost model.
 pub const PW_LINEAR: usize = 1;
@@ -9,7 +13,12 @@ pub const PW_LINEAR: usize = 1;
 pub const POLYNOMIAL: usize = 2;
 
 /// Generator cost function.
-#[derive(Clone, Debug, Validate, Builder)]
+#[derive(Serialize, Deserialize, Clone, Debug, Validate, Builder)]
+#[cfg_attr(
+    target_arch = "wasm32",
+    derive(Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[builder(setter(into))]
 #[validate(schema(function = "crate::validate::validate_gencost"))]
 pub struct GenCost {

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use casecsv::{write::write_zip, Branch, Bus, Case, Gen, REF};
+use casecsv::{write_zip, Branch, Bus, Case, Gen, REF};
 
 fn main() {
     if let Err(err) = run() {
@@ -24,10 +24,11 @@ fn run() -> anyhow::Result<()> {
         &branch,
         &Vec::default(),
         &Vec::default(),
-        Some(
+        Some(String::from(
             "2-bus test case from \"Controller Tests in Test Grid Configurations\"
 by ENTSO-E System Protection and Dynamics, Nov 2013.",
-        ),
+        )),
+        None,
     )?;
 
     Ok(())

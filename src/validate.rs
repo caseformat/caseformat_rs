@@ -20,9 +20,9 @@ pub fn validate_bus_numbers(
 
     if let Some(gen) = gen {
         for g in gen {
-            if !bus_numbers.contains(&g.bus) {
+            if !bus_numbers.contains(&g.gen_bus) {
                 let mut err = ValidationError::new("gen bus must exist");
-                err.add_param("bus".into(), &g.bus);
+                err.add_param("bus".into(), &g.gen_bus);
                 return Err(err);
             }
         }
