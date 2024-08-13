@@ -18,17 +18,17 @@ use soa_derive::StructOfArray;
 /// Generator or dispatchable load.
 #[derive(Serialize, Deserialize, Validate, Clone, Debug, Builder, PartialEq)]
 #[cfg_attr(
-    target_arch = "wasm32",
-    derive(Tsify),
-    tsify(into_wasm_abi, from_wasm_abi)
+target_arch = "wasm32",
+derive(Tsify),
+tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[builder(setter(into))]
 #[validate(schema(function = "crate::validate::validate_gen"))]
 #[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(
-    feature = "dataset",
-    derive(StructOfArray),
-    soa_derive(Serialize, Deserialize)
+feature = "dataset",
+derive(StructOfArray),
+soa_derive(Serialize, Deserialize)
 )]
 pub struct Gen {
     /// Bus number.

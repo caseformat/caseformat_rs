@@ -61,10 +61,10 @@ pub mod builder {
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
-/// CaseCSV Python module implemented in Rust.
+/// Case format Python module implemented in Rust.
 #[cfg(feature = "pyo3")]
 #[pymodule]
-fn pycasecsv(_py: Python, m: &PyModule) -> PyResult<()> {
+fn pycaseformat(_py: Python, m: &PyModule) -> PyResult<()> {
     // m.add_function(wrap_pyfunction!(read_zip, m)?)?;
     m.add_class::<Case>()?;
     m.add_class::<Bus>()?;

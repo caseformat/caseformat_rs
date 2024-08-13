@@ -14,14 +14,16 @@ use pyo3::prelude::*;
 #[cfg(feature = "dataset")]
 use soa_derive::StructOfArray;
 
+pub type BusType = usize;
+
 /// PQ bus type.
-pub const PQ: usize = 1;
+pub const PQ: BusType = 1;
 /// PV bus type.
-pub const PV: usize = 2;
+pub const PV: BusType = 2;
 /// Reference bus type.
-pub const REF: usize = 3;
+pub const REF: BusType = 3;
 /// Isolated bus type.
-pub const NONE: usize = 4;
+pub const NONE: BusType = 4;
 
 #[derive(Serialize, Deserialize, Validate, Clone, Debug, Builder, PartialEq)]
 #[cfg_attr(

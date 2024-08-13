@@ -1,5 +1,5 @@
 use anyhow::Result;
-use casecsv::dataset::Dataset;
+use caseformat::dataset::Dataset;
 use clap::Parser;
 use std::fs::File;
 use std::io::BufReader;
@@ -51,14 +51,14 @@ fn execute(cli: &Cli) -> Result<()> {
     let (case, bus, gen, branch, gencost, dcline, readme, license) = if is_case {
         let file = File::open(case_path).expect("Unable to open input file");
         let reader = BufReader::new(file);
-        casecsv::read_zip(reader)?
+        caseformat::read_zip(reader)?
     } else {
-        casecsv::read_dir(case_path)?
+        caseformat::read_dir(case_path)?
     };
 
     match cli.output.extension() {
         None => {
-            casecsv::write_dir(
+            caseformat::write_dir(
                 &cli.output,
                 &case,
                 &bus,
@@ -82,11 +82,11 @@ fn execute(cli: &Cli) -> Result<()> {
             }
             Some("m") => {
                 let file = File::create(&cli.output)?;
-                casecsv::write_mpc(file, &case, &bus, &gen, &branch, &gencost, &dcline)?;
+                caseformat::write_mpc(file, &case, &bus, &gen, &branch, &gencost, &dcline)?;
             }
             Some("case") | Some("zip") => {
                 let file = File::create(&cli.output)?;
-                casecsv::write_zip(
+                caseformat::write_zip(
                     file, &case, &bus, &gen, &branch, &gencost, &dcline, readme, license,
                 )?;
             }
@@ -103,7 +103,7 @@ fn execute(cli: &Cli) -> Result<()> {
 //     pub casename: String,
 //     pub base_mva: f64,
 //
-//     pub bus: Vec<casecsv::Bus>,
-//     pub gen: Vec<casecsv::Gen>,
-//     pub branch: Vec<casecsv::Branch>,
+//     pub bus: Vec<caseformat::Bus>,
+//     pub gen: Vec<caseformat::Gen>,
+//     pub branch: Vec<caseformat::Branch>,
 // }

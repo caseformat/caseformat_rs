@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use casecsv::{write_zip, Branch, Bus, Case, Gen, REF};
+use caseformat::{write_zip, Branch, Bus, Case, Gen, REF};
 
 fn main() {
     if let Err(err) = run() {
