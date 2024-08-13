@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::path::Path;
 
 use caseformat::{write_zip, Branch, Bus, Case, Gen, REF};
@@ -17,7 +18,7 @@ fn run() -> anyhow::Result<()> {
 
     let zip_path = Path::new("entsoe2.case");
     write_zip(
-        &zip_path.to_path_buf(),
+        File::open(&zip_path.to_path_buf())?,
         &case,
         &bus,
         &gen,
@@ -110,8 +111,8 @@ fn entsoe2() -> anyhow::Result<(Case, Vec<Bus>, Vec<Gen>, Vec<Branch>)> {
     let tap = VB_HV / VB;
 
     let t_gen = Branch::new(ngrid.bus_i, ngen.bus_i)
-        .r(r_pu)
-        .x(x_pu)
+        .br_r(r_pu)
+        .br_x(x_pu)
         .tap(tap)
         .build()?;
 

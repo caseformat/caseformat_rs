@@ -1,4 +1,4 @@
-//! Power flow data in CSV format.
+//! Power flow case data format.
 //!
 //! Based on the [MATPOWER](https://matpower.org) case file format.
 

@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::path::Path;
 use validator::Validate;
 
@@ -9,7 +10,7 @@ fn test_read_dir() {
     let manifest_path = Path::new(&manifest_dir);
     let case9_dir = manifest_path.join("casedata").join("case9");
 
-    let (case, buses, gen, branch, gencost, dcline) = read_dir(&case9_dir).unwrap();
+    let (case, buses, gen, branch, gencost, dcline, _readme, _license) = read_dir(&case9_dir).unwrap();
 
     assert!(case.validate().is_ok());
     assert_eq!(case.name, "case9");
@@ -40,7 +41,7 @@ fn test_read_zip() {
     let manifest_path = Path::new(&manifest_dir);
     let ieee14_zip = manifest_path.join("casedata").join("ieee14.case");
 
-    let (case, buses, gen, branch, gencost, dcline) = read_zip(&ieee14_zip).unwrap();
+    let (case, buses, gen, branch, gencost, dcline, _readme, _license) = read_zip(File::open(&ieee14_zip).unwrap()).unwrap();
 
     assert!(case.validate().is_ok());
     assert_eq!(case.name, "ieee14");
