@@ -20,11 +20,13 @@ time = { version = "0.3", features = ["wasm-bindgen"] }
 clap = { version = "4.4", features = ["derive"] }
 serde_json = "1"
 soa_derive = { version = "0.13", optional = true }
+power_flow_data = { version = "0.2", optional = true }
 
 pyo3 = { version = "0.19.0", optional = true, features = ["extension-module"] }
 
 [features]
 dataset = ["dep:soa_derive"]
+raw = ["dep:power_flow_data"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

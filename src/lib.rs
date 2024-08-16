@@ -22,6 +22,9 @@ pub mod validate;
 #[cfg(feature = "dataset")]
 pub mod dataset;
 
+#[cfg(feature = "raw")]
+pub mod raw;
+
 #[cfg(test)]
 mod test;
 
