@@ -7,7 +7,15 @@ use std::collections::HashMap;
 const DEFAULT_VMIN: f64 = 0.9;
 const DEFAULT_VMAX: f64 = 1.1;
 
-pub fn raw_to_case(network: &Network) -> Result<(crate::Case, Vec<crate::Bus>, Vec<crate::Gen>)> {
+pub fn raw_to_case(
+    network: &Network,
+) -> Result<(
+    crate::Case,
+    Vec<crate::Bus>,
+    Vec<crate::Gen>,
+    Vec<crate::Branch>,
+    Vec<crate::DCLine>,
+)> {
     let base_mva = network.caseid.sbase;
 
     let case = {
@@ -421,5 +429,75 @@ pub fn raw_to_case(network: &Network) -> Result<(crate::Case, Vec<crate::Bus>, V
         branch_vec.extend([branch12, branch23, branch31]);
     }
 
-    Ok((case, bus_vec, gen_vec))
+    let mut dcline_vec = vec![];
+    for raw_dcline in &network.two_terminal_dc {
+        let busr = {
+            let ipr = *raw_dcline.ipr() as usize; // rectifier
+            let ipri = bus_index.get(&ipr).unwrap();
+            &bus_vec[*ipri]
+        };
+        let busi = {
+            let ipi = *raw_dcline.ipi() as usize; // inverter
+            let ipii = bus_index.get(&ipi).unwrap();
+            &bus_vec[*ipii]
+        };
+
+        let setvl = raw_dcline.setvl().abs();
+        let p_mw = match raw_dcline.mdc() {
+            1 => setvl,
+            2 => setvl * *raw_dcline.vschd() / 1000.0,
+            _ => 0.0,
+        };
+
+        let (qr_min, qr_max) = hvdc_q_lims(*raw_dcline.alfmx(), *raw_dcline.alfmn(), p_mw);
+        let (qi_min, qi_max) = hvdc_q_lims(*raw_dcline.gammx(), *raw_dcline.gammn(), p_mw);
+
+        let dcline = crate::DCLine::new(*raw_dcline.ipr() as usize, *raw_dcline.ipi() as usize)
+            .br_status(if *raw_dcline.mdc() == 0 {
+                OUT_OF_SERVICE
+            } else {
+                IN_SERVICE
+            })
+            .pf(p_mw)
+            .pt(p_mw)
+            .vf(busr.vm)
+            .vt(busi.vm)
+            .pmin(0.85 * p_mw)
+            .pmax(1.15 * p_mw)
+            .qminf(qr_min)
+            .qmaxf(qr_max)
+            .qmint(qi_min)
+            .qmaxt(qi_max)
+            .build()?;
+        dcline_vec.push(dcline);
+    }
+
+    Ok((case, bus_vec, gen_vec, branch_vec, dcline_vec))
+}
+
+// Calculate HVDC line reactive power limits.
+//
+// This function calculates the reactive power at the rectifier or inverter end.
+// It is assumed the maximum overlap angle is 60 degree (see Kimbark's book).
+//
+// Based on `psse_convert_hvdc_Qlims` from `psse_convert_hvdc.m` in MATPOWER 7.1.
+fn hvdc_q_lims(alphamax: f64, alphamin: f64, p_mw: f64) -> (f64, f64) {
+    // Minimum reactive power calculated under assumption of no overlap angle
+    // i.e. power factor equals to tan(alpha).
+    let q_min = p_mw * alphamin.to_radians().tan();
+
+    // Maximum reactive power calculated when overlap angle reaches max
+    // value (60 deg). I.e.
+    //      cos(phi) = 1/2*(cos(alpha)+cos(delta))
+    //      Q = P*tan(phi)
+
+    let phi = (0.5 * (alphamax.to_radians().cos() + 60_f64.to_radians().cos()))
+        .to_radians()
+        .acos();
+    let q_max = p_mw * phi.to_radians().tan();
+
+    (
+        if q_min < 0.0 { -q_min } else { q_min },
+        if q_max < 0.0 { -q_max } else { q_max },
+    )
 }
