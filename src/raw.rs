@@ -1,16 +1,13 @@
-use crate::{IN_SERVICE, NONE, OUT_OF_SERVICE, PQ};
 use anyhow::{format_err, Result};
-use power_flow_data::Bus::{Bus30, Bus33};
-use power_flow_data::Network;
+use power_flow_data::{AreaNum, BusNum, CaseID, Network, ZoneNum};
 use std::collections::HashMap;
 
-const DEFAULT_VMIN: f64 = 0.9;
-const DEFAULT_VMAX: f64 = 1.1;
+use crate::{Case, IN_SERVICE, NONE, OUT_OF_SERVICE, PQ};
 
 pub fn raw_to_case(
     network: &Network,
 ) -> Result<(
-    crate::Case,
+    Case,
     Vec<crate::Bus>,
     Vec<crate::Gen>,
     Vec<crate::Branch>,
@@ -31,27 +28,16 @@ pub fn raw_to_case(
 
     let mut bus_vec = Vec::with_capacity(network.buses.len());
     for raw_bus in &network.buses {
-        let mut builder = crate::Bus::new(*raw_bus.i() as usize);
+        let mut builder = crate::Bus::new(raw_bus.i as usize);
         builder
-            .bus_type(*raw_bus.ide() as usize)
-            .base_kv(*raw_bus.basekv())
-            .bus_area(*raw_bus.area() as usize)
-            .zone(*raw_bus.zone() as usize)
-            .vm(*raw_bus.vm())
-            .va(*raw_bus.va());
-        match raw_bus {
-            Bus30(bus30) => {
-                builder
-                    .gs(bus30.gl)
-                    .bs(bus30.bl)
-                    .vmax(DEFAULT_VMAX)
-                    .vmin(DEFAULT_VMIN);
-            }
-            Bus33(bus33) => {
-                builder.vmax(bus33.nvhi);
-                builder.vmin(bus33.nvlo);
-            }
-        }
+            .bus_type(raw_bus.ide as usize)
+            .base_kv(raw_bus.basekv)
+            .bus_area(raw_bus.area as usize)
+            .zone(raw_bus.zone as usize)
+            .vm(raw_bus.vm)
+            .va(raw_bus.va)
+            .vmax(raw_bus.nvhi)
+            .vmin(raw_bus.nvlo);
         bus_vec.push(builder.build()?);
     }
 
@@ -73,22 +59,20 @@ pub fn raw_to_case(
         bus.qd += raw_load.ql + raw_load.iq * vm - raw_load.yq * vm2;
     }
 
-    if let Some(fixed_shunts) = &network.fixed_shunts {
-        for raw_shunt in fixed_shunts.iter().filter(|fs| fs.status) {
-            let i = raw_shunt.i as usize;
-            let j = bus_index.get(&i).unwrap();
-            let bus = &mut bus_vec[*j];
+    for raw_shunt in network.fixed_shunts.iter().filter(|fs| fs.status) {
+        let i = raw_shunt.i as usize;
+        let j = bus_index.get(&i).unwrap();
+        let bus = &mut bus_vec[*j];
 
-            bus.gs += raw_shunt.gl;
-            bus.bs += raw_shunt.bl;
-        }
+        bus.gs += raw_shunt.gl;
+        bus.bs += raw_shunt.bl;
     }
 
     for raw_shunt in &network.switched_shunts {
-        let i = *raw_shunt.i() as usize;
+        let i = raw_shunt.i as usize;
         let j = bus_index.get(&i).unwrap();
         let bus = &mut bus_vec[*j];
-        bus.bs += raw_shunt.binit();
+        bus.bs += raw_shunt.binit;
     }
 
     // Generator //
@@ -118,16 +102,15 @@ pub fn raw_to_case(
     let mut branch_vec = Vec::with_capacity(network.branches.len() + network.transformers.len());
 
     for raw_branch in &network.branches {
-        let mut builder =
-            crate::Branch::new(*raw_branch.i() as usize, raw_branch.j().abs() as usize);
+        let mut builder = crate::Branch::new(raw_branch.i as usize, raw_branch.j.abs() as usize);
         builder
-            .br_r(*raw_branch.r())
-            .br_x(*raw_branch.x())
-            .br_b(*raw_branch.b())
-            .rate_a(*raw_branch.rate_a())
-            .rate_b(*raw_branch.rate_b())
-            .rate_c(*raw_branch.rate_c())
-            .br_status(if *raw_branch.st() {
+            .br_r(raw_branch.r)
+            .br_x(raw_branch.x)
+            .br_b(raw_branch.b)
+            .rate_a(raw_branch.rate_a)
+            .rate_b(raw_branch.rate_b)
+            .rate_c(raw_branch.rate_c)
+            .br_status(if raw_branch.st {
                 IN_SERVICE
             } else {
                 OUT_OF_SERVICE
@@ -135,18 +118,18 @@ pub fn raw_to_case(
         branch_vec.push(builder.build()?);
     }
 
-    for raw_branch in network.branches.iter().filter(|br| *br.st()) {
-        let i = *raw_branch.i() as usize;
+    for raw_branch in network.branches.iter().filter(|br| br.st) {
+        let i = raw_branch.i as usize;
         let ii = bus_index.get(&i).unwrap();
         let fbus = &mut bus_vec[*ii];
-        fbus.gs += raw_branch.gi() * base_mva;
-        fbus.bs += raw_branch.bi() * base_mva;
+        fbus.gs += raw_branch.gi * base_mva;
+        fbus.bs += raw_branch.bi * base_mva;
 
-        let j = *raw_branch.j() as usize;
+        let j = raw_branch.j as usize;
         let jj = bus_index.get(&j).unwrap();
         let tbus = &mut bus_vec[*jj];
-        tbus.gs += raw_branch.gj() * base_mva;
-        tbus.bs += raw_branch.bj() * base_mva;
+        tbus.gs += raw_branch.gj * base_mva;
+        tbus.bs += raw_branch.bj * base_mva;
     }
 
     // Transformer //
@@ -432,28 +415,28 @@ pub fn raw_to_case(
     let mut dcline_vec = vec![];
     for raw_dcline in &network.two_terminal_dc {
         let busr = {
-            let ipr = *raw_dcline.ipr() as usize; // rectifier
+            let ipr = raw_dcline.ipr as usize; // rectifier
             let ipri = bus_index.get(&ipr).unwrap();
             &bus_vec[*ipri]
         };
         let busi = {
-            let ipi = *raw_dcline.ipi() as usize; // inverter
+            let ipi = raw_dcline.ipi as usize; // inverter
             let ipii = bus_index.get(&ipi).unwrap();
             &bus_vec[*ipii]
         };
 
-        let setvl = raw_dcline.setvl().abs();
-        let p_mw = match raw_dcline.mdc() {
+        let setvl = raw_dcline.setvl.abs();
+        let p_mw = match raw_dcline.mdc {
             1 => setvl,
-            2 => setvl * *raw_dcline.vschd() / 1000.0,
+            2 => setvl * raw_dcline.vschd / 1000.0,
             _ => 0.0,
         };
 
-        let (qr_min, qr_max) = hvdc_q_lims(*raw_dcline.alfmx(), *raw_dcline.alfmn(), p_mw);
-        let (qi_min, qi_max) = hvdc_q_lims(*raw_dcline.gammx(), *raw_dcline.gammn(), p_mw);
+        let (qr_min, qr_max) = hvdc_q_lims(raw_dcline.alfmx, raw_dcline.alfmn, p_mw);
+        let (qi_min, qi_max) = hvdc_q_lims(raw_dcline.gammx, raw_dcline.gammn, p_mw);
 
-        let dcline = crate::DCLine::new(*raw_dcline.ipr() as usize, *raw_dcline.ipi() as usize)
-            .br_status(if *raw_dcline.mdc() == 0 {
+        let dcline = crate::DCLine::new(raw_dcline.ipr as usize, raw_dcline.ipi as usize)
+            .br_status(if raw_dcline.mdc == 0 {
                 OUT_OF_SERVICE
             } else {
                 IN_SERVICE
@@ -500,4 +483,54 @@ fn hvdc_q_lims(alphamax: f64, alphamin: f64, p_mw: f64) -> (f64, f64) {
         if q_min < 0.0 { -q_min } else { q_min },
         if q_max < 0.0 { -q_max } else { q_max },
     )
+}
+
+pub fn case_to_raw(case: &Case, bus: &[crate::Bus]) -> Network {
+    let buses = bus
+        .iter()
+        .map(|bus| power_flow_data::Bus {
+            i: bus.bus_i as BusNum,
+            name: Default::default(),
+            basekv: bus.base_kv,
+            ide: bus.bus_type as i8,
+            area: bus.bus_area as AreaNum,
+            zone: bus.zone as ZoneNum,
+            owner: 0,
+            vm: bus.vm,
+            va: bus.va,
+            nvhi: bus.vmax,
+            nvlo: bus.vmin,
+            evhi: bus.vmax,
+            evlo: bus.vmin,
+        })
+        .collect();
+
+    Network {
+        version: 0,
+        caseid: CaseID {
+            ic: 0,
+            sbase: case.base_mva,
+            rev: None,
+            xfrrat: None,
+            nxfrat: None,
+            basfrq: case.f,
+        },
+        buses,
+        loads: vec![],
+        fixed_shunts: vec![],
+        generators: vec![],
+        branches: vec![],
+        transformers: vec![],
+        area_interchanges: vec![],
+        two_terminal_dc: vec![],
+        vsc_dc: vec![],
+        switched_shunts: vec![],
+        impedance_corrections: vec![],
+        multi_terminal_dc: vec![],
+        multi_section_lines: vec![],
+        zones: vec![],
+        area_transfers: vec![],
+        owners: vec![],
+        facts: vec![],
+    }
 }
