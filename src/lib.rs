@@ -29,6 +29,7 @@ pub mod raw;
 mod test;
 
 pub use branch::Branch;
+pub use bus::bus_index;
 pub use bus::Bus;
 pub use bus::{NONE, PQ, PV, REF};
 pub use case::Case;

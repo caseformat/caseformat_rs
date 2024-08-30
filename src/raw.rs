@@ -1,13 +1,15 @@
 use anyhow::{format_err, Result};
-use power_flow_data::{AreaNum, BusNum, CaseID, Network, ZoneNum};
+use arrayvec::ArrayString;
 use std::collections::HashMap;
 
-use crate::{Case, IN_SERVICE, NONE, OUT_OF_SERVICE, PQ};
+use power_flow_data::{AreaNum, BusNum, CaseID, Stat, ZoneNum};
+
+use crate::{IN_SERVICE, NONE, OUT_OF_SERVICE, PQ};
 
 pub fn raw_to_case(
-    network: &Network,
+    network: &power_flow_data::Network,
 ) -> Result<(
-    Case,
+    crate::Case,
     Vec<crate::Bus>,
     Vec<crate::Gen>,
     Vec<crate::Branch>,
@@ -47,7 +49,7 @@ pub fn raw_to_case(
         .map(|(i, bus)| (bus.bus_i, i))
         .collect();
 
-    for raw_load in network.loads.iter().filter(|ld| ld.status) {
+    for raw_load in network.loads.iter().filter(|ld| ld.status != 0) {
         let i = raw_load.i as usize;
         let j = bus_index.get(&i).unwrap();
         let bus = &mut bus_vec[*j];
@@ -59,7 +61,7 @@ pub fn raw_to_case(
         bus.qd += raw_load.ql + raw_load.iq * vm - raw_load.yq * vm2;
     }
 
-    for raw_shunt in network.fixed_shunts.iter().filter(|fs| fs.status) {
+    for raw_shunt in network.fixed_shunts.iter().filter(|fs| fs.status != 0) {
         let i = raw_shunt.i as usize;
         let j = bus_index.get(&i).unwrap();
         let bus = &mut bus_vec[*j];
@@ -86,7 +88,7 @@ pub fn raw_to_case(
             .qmin(raw_gen.qb)
             .vg(raw_gen.vs)
             .mbase(raw_gen.mbase)
-            .gen_status(if raw_gen.stat {
+            .gen_status(if raw_gen.stat != 0 {
                 IN_SERVICE
             } else {
                 OUT_OF_SERVICE
@@ -110,7 +112,7 @@ pub fn raw_to_case(
             .rate_a(raw_branch.rate_a)
             .rate_b(raw_branch.rate_b)
             .rate_c(raw_branch.rate_c)
-            .br_status(if raw_branch.st {
+            .br_status(if raw_branch.st != 0 {
                 IN_SERVICE
             } else {
                 OUT_OF_SERVICE
@@ -118,7 +120,7 @@ pub fn raw_to_case(
         branch_vec.push(builder.build()?);
     }
 
-    for raw_branch in network.branches.iter().filter(|br| br.st) {
+    for raw_branch in network.branches.iter().filter(|br| br.st != 0) {
         let i = raw_branch.i as usize;
         let ii = bus_index.get(&i).unwrap();
         let fbus = &mut bus_vec[*ii];
@@ -485,7 +487,15 @@ fn hvdc_q_lims(alphamax: f64, alphamin: f64, p_mw: f64) -> (f64, f64) {
     )
 }
 
-pub fn case_to_raw(case: &Case, bus: &[crate::Bus]) -> Network {
+pub fn case_to_raw(
+    case: &crate::Case,
+    bus: &[crate::Bus],
+    gen: &[crate::Gen],
+    branch: &[crate::Branch],
+    dcline: &[crate::DCLine],
+) -> power_flow_data::Network {
+    let bus_index = crate::bus_index(bus);
+
     let buses = bus
         .iter()
         .map(|bus| power_flow_data::Bus {
@@ -505,32 +515,161 @@ pub fn case_to_raw(case: &Case, bus: &[crate::Bus]) -> Network {
         })
         .collect();
 
-    Network {
+    let is_load = |bus: &&crate::Bus| bus.pd != 0.0 || bus.qd != 0.0;
+    let is_shunt = |bus: &&crate::Bus| bus.gs != 0.0 || bus.bs != 0.0;
+    let is_tfmr = |br: &&crate::Branch| br.tap != 0.0 || br.shift != 0.0;
+
+    let mut loads: Vec<power_flow_data::Load> = bus
+        .iter()
+        .filter(is_load)
+        .map(|bus| power_flow_data::Load {
+            i: bus.bus_i as BusNum,
+            id: ArrayString::from("1").unwrap(),
+            area: bus.bus_area as AreaNum,
+            zone: bus.zone as ZoneNum,
+            pl: bus.pd,
+            ql: bus.qd,
+            ..Default::default()
+        })
+        .collect();
+
+    {
+        let mut load_counts: HashMap<usize, usize> = bus
+            .iter()
+            .filter(is_load)
+            .map(|bus| (bus.bus_i, 1))
+            .collect();
+
+        loads.extend(gen.iter().filter(|gen| gen.is_load()).map(|dl| {
+            let dlbus = &bus[bus_index[&dl.gen_bus]];
+            let c = load_counts.entry(dl.gen_bus).or_insert(0);
+            *c += 1;
+            power_flow_data::Load {
+                i: dl.gen_bus as BusNum,
+                id: ArrayString::from(&format!("{}", *c)).unwrap(),
+                status: dl.gen_status as Stat,
+                area: dlbus.bus_area as AreaNum,
+                zone: dlbus.zone as ZoneNum,
+                pl: -dl.pmin,
+                ql: -dl.qmin,
+                ..Default::default()
+            }
+        }));
+    }
+
+    let fixed_shunts = bus
+        .iter()
+        .filter(is_shunt)
+        .map(|bus| power_flow_data::FixedShunt {
+            i: bus.bus_i as BusNum,
+            id: ArrayString::from("1").unwrap(),
+            gl: bus.gs,
+            bl: bus.bs,
+            ..Default::default()
+        })
+        .collect();
+
+    let generators = gen
+        .iter()
+        .filter(|gen| !gen.is_load())
+        .map(|gen| power_flow_data::Generator {
+            i: gen.gen_bus as BusNum,
+            id: ArrayString::from("1").unwrap(),
+            pg: gen.pg,
+            qg: gen.qg,
+            qt: gen.qmax,
+            qb: gen.qmin,
+            vs: gen.vg,
+            mbase: gen.mbase,
+            stat: gen.gen_status as Stat,
+            pt: gen.pmax,
+            pb: gen.pmin,
+            ..Default::default()
+        })
+        .collect();
+
+    let branches = {
+        let mut ckts: HashMap<(usize, usize), usize> = HashMap::new();
+        branch
+            .iter()
+            .filter(|br| !is_tfmr(br))
+            .map(|br| {
+                let ckt = ckts.entry((br.f_bus, br.t_bus)).or_insert(0);
+                *ckt += 1;
+                power_flow_data::Branch {
+                    i: br.f_bus as BusNum,
+                    j: br.t_bus as BusNum,
+                    ckt: ArrayString::from(&format!("{}", ckt)).unwrap(),
+                    r: br.br_r,
+                    x: br.br_x,
+                    b: br.br_b,
+                    rate_a: br.rate_a,
+                    rate_b: br.rate_b,
+                    rate_c: br.rate_c,
+                    st: br.br_status as Stat,
+                    ..Default::default()
+                }
+            })
+            .collect()
+    };
+
+    let transformers = {
+        let mut ckts: HashMap<(usize, usize), usize> = HashMap::new();
+        branch
+            .iter()
+            .filter(is_tfmr)
+            .map(|tr| {
+                let ckt = ckts.entry((tr.f_bus, tr.t_bus)).or_insert(0);
+                *ckt += 1;
+                power_flow_data::Transformer {
+                    i: tr.f_bus as BusNum,
+                    j: tr.t_bus as BusNum,
+                    ckt: ArrayString::from(&format!("{}", ckt)).unwrap(),
+                    stat: tr.br_status as Stat,
+                    r1_2: tr.br_r,
+                    x1_2: tr.br_x,
+                    sbase1_2: case.base_mva,
+                    windv1: tr.tap,
+                    ang1: tr.shift,
+                    rata1: tr.rate_a,
+                    ratb1: tr.rate_b,
+                    ratc1: tr.rate_c,
+                    ..Default::default()
+                }
+            })
+            .collect()
+    };
+
+    let two_terminal_dc = dcline
+        .iter()
+        .enumerate()
+        .map(|(i, dcline)| power_flow_data::TwoTerminalDCLine {
+            name: ArrayString::from(&format!("DCLINE {}", i + 1)).unwrap(),
+            setvl: dcline.pf,
+            ipr: dcline.f_bus as BusNum,
+            ebasr: bus[bus_index[&dcline.f_bus]].base_kv,
+            ipi: dcline.t_bus as BusNum,
+            ebasi: bus[bus_index[&dcline.t_bus]].base_kv,
+            ..Default::default()
+        })
+        .collect();
+
+    power_flow_data::Network {
         version: 0,
         caseid: CaseID {
             ic: 0,
             sbase: case.base_mva,
-            rev: None,
-            xfrrat: None,
-            nxfrat: None,
+            rev: Some(33),
             basfrq: case.f,
+            ..Default::default()
         },
         buses,
-        loads: vec![],
-        fixed_shunts: vec![],
-        generators: vec![],
-        branches: vec![],
-        transformers: vec![],
-        area_interchanges: vec![],
-        two_terminal_dc: vec![],
-        vsc_dc: vec![],
-        switched_shunts: vec![],
-        impedance_corrections: vec![],
-        multi_terminal_dc: vec![],
-        multi_section_lines: vec![],
-        zones: vec![],
-        area_transfers: vec![],
-        owners: vec![],
-        facts: vec![],
+        loads,
+        fixed_shunts,
+        generators,
+        branches,
+        transformers,
+        two_terminal_dc,
+        ..Default::default()
     }
 }

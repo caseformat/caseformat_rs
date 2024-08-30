@@ -2,6 +2,7 @@ use anyhow::Result;
 use csv::StringRecord;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use validator::Validate;
 
 use crate::{parse_optional_record, parse_record};
@@ -227,4 +228,12 @@ impl BusBuilder {
         self.bus_type = Some(3);
         self
     }
+}
+
+/// Returns a map of bus external number to internal index.
+pub fn bus_index(bus: &[Bus]) -> HashMap<usize, usize> {
+    bus.iter()
+        .enumerate()
+        .map(|(i, bus)| (bus.bus_i, i))
+        .collect()
 }
