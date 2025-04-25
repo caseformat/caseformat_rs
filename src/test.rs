@@ -2,7 +2,7 @@ use std::fs::File;
 use std::path::Path;
 use validator::Validate;
 
-use crate::read::{read_dir, read_zip};
+use crate::read::{read_dir, read_tar};
 
 #[test]
 fn test_read_dir() {
@@ -10,7 +10,8 @@ fn test_read_dir() {
     let manifest_path = Path::new(&manifest_dir);
     let case9_dir = manifest_path.join("casedata").join("case9");
 
-    let (case, buses, gen, branch, gencost, dcline, _readme, _license) = read_dir(&case9_dir).unwrap();
+    let (case, buses, gen, branch, gencost, dcline, _readme, _license) =
+        read_dir(&case9_dir).unwrap();
 
     assert!(case.validate().is_ok());
     assert_eq!(case.name, "case9");
@@ -41,7 +42,8 @@ fn test_read_zip() {
     let manifest_path = Path::new(&manifest_dir);
     let ieee14_zip = manifest_path.join("casedata").join("ieee14.case");
 
-    let (case, buses, gen, branch, gencost, dcline, _readme, _license) = read_zip(File::open(&ieee14_zip).unwrap()).unwrap();
+    let (case, buses, gen, branch, gencost, dcline, _readme, _license) =
+        read_tar(File::open(&ieee14_zip).unwrap()).unwrap();
 
     assert!(case.validate().is_ok());
     assert_eq!(case.name, "ieee14");

@@ -1,5 +1,5 @@
-use crate::read::read_zip;
-use crate::write::write_zip;
+use crate::read::read_tar;
+use crate::write::write_tar;
 use crate::{Branch, Bus, Case, DCLine, Gen, GenCost};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
@@ -22,7 +22,7 @@ pub struct ReadResponse {
 #[wasm_bindgen]
 pub fn read_case_bytes(data: Vec<u8>) -> Result<ReadResponse, String> {
     let cursor = Cursor::new(data.as_slice());
-    let (case, bus, gen, branch, gencost, dcline, readme, license) = read_zip(cursor).unwrap();
+    let (case, bus, gen, branch, gencost, dcline, readme, license) = read_tar(cursor).unwrap();
     Ok(ReadResponse {
         case,
         bus,
@@ -48,7 +48,7 @@ pub fn write_case_bytes(
     // license: Option<String>,
 ) -> Result<Vec<u8>, String> {
     let cursor = Cursor::new(vec![]);
-    let cursor = write_zip(
+    let cursor = write_tar(
         cursor,
         &data.case,
         &data.bus,

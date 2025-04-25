@@ -1,8 +1,7 @@
 use anyhow::{format_err, Result};
 use std::fs::File;
-use std::io::{read_to_string, Read, Seek};
+use std::io::{read_to_string, Read};
 use std::path::{Path, PathBuf};
-use zip::{result::ZipError, ZipArchive};
 
 use crate::{Branch, Bus, Case, DCLine, Gen, GenCost};
 
@@ -48,8 +47,8 @@ macro_rules! parse_optional_record {
     }};
 }
 
-pub fn read_zip(
-    reader: impl Read + Seek,
+pub fn read_tar(
+    reader: impl Read,
 ) -> Result<(
     Case,
     Vec<Bus>,
@@ -60,165 +59,72 @@ pub fn read_zip(
     Option<String>,
     Option<String>,
 )> {
-    let mut zip_archive = ZipArchive::new(reader).unwrap();
+    let mut ar = tar::Archive::new(reader);
 
-    let case = match zip_archive.by_name(CASE_FILE) {
-        Ok(case_file) => {
-            read_case_file(case_file).map_err(|err| format_err!("case file read error: {}", err))?
+    let mut case = Some(Case::new("").build().unwrap());
+    // let mut case = None;
+    let mut bus = Vec::default();
+    let mut gen = Vec::default();
+    let mut branch = Vec::default();
+    let mut gencost = Vec::default();
+    let mut dcline = Vec::default();
+    let mut readme = None;
+    let mut license = None;
+
+    for entry in ar.entries()? {
+        let file = entry?;
+        // let s = read_to_string(file).unwrap();
+        // println!("{}", s.len());
+        match file
+            .path()?
+            .as_os_str()
+            .to_os_string()
+            .into_string()
+            .map_err(|err| format_err!("path error for: {:?}", err))?
+            .as_str()
+        {
+            CASE_FILE => {
+                case = Some(read_case_file(file)?);
+            }
+                BUS_FILE => {
+                    bus = read_bus_file(file)?;
+                }
+                GEN_FILE => {
+                    gen = read_gen_file(file)?;
+                }
+                BRANCH_FILE => {
+                    branch = read_branch_file(file)?;
+                }
+                GENCOST_FILE => {
+                    gencost = read_gencost_file(file)?;
+                }
+                DCLINE_FILE => {
+                    dcline = read_dcline_file(file)?;
+                }
+                README_FILE => {
+                    readme = Some(read_to_string(file)?);
+                }
+                LICENSE_FILE => {
+                    license = Some(read_to_string(file)?);
+                }
+            _ => {}
         }
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("case file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("case file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!("case file unsupported archive error: {}", err));
-            }
-            ZipError::FileNotFound => {
-                return Err(format_err!("zip archive must contain {} file", CASE_FILE));
-            }
-        },
-    };
+    }
 
-    let bus = match zip_archive.by_name(BUS_FILE) {
-        Ok(bus_file) => {
-            read_bus_file(bus_file).map_err(|err| format_err!("bus file read error: {}", err))?
-        }
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("bus file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("bus file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!("bus file unsupported archive error: {}", err));
-            }
-            ZipError::FileNotFound => {
-                return Err(format_err!("zip archive must contain {} file", BUS_FILE));
-            }
-        },
-    };
+    if case.is_none() {
+        return Err(format_err!("archive must contain {} file", CASE_FILE));
+    }
 
-    let gen = match zip_archive.by_name(GEN_FILE) {
-        Ok(gen_file) => {
-            read_gen_file(gen_file).map_err(|err| format_err!("gen file read error: {}", err))?
-        }
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("gen file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("gen file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!("gen file unsupported archive error: {}", err));
-            }
-            ZipError::FileNotFound => Vec::default(),
-        },
-    };
-
-    let branch = match zip_archive.by_name(BRANCH_FILE) {
-        Ok(branch_file) => read_branch_file(branch_file)
-            .map_err(|err| format_err!("branch file read error: {}", err))?,
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("branch file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("branch file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!(
-                    "branch file unsupported archive error: {}",
-                    err
-                ));
-            }
-            ZipError::FileNotFound => Vec::default(),
-        },
-    };
-
-    let gencost = match zip_archive.by_name(GENCOST_FILE) {
-        Ok(gencost_file) => read_gencost_file(gencost_file)
-            .map_err(|err| format_err!("gencost file read error: {}", err))?,
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("gencost file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("gencost file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!(
-                    "gencost file unsupported archive error: {}",
-                    err
-                ));
-            }
-            ZipError::FileNotFound => Vec::default(),
-        },
-    };
-
-    let dcline = match zip_archive.by_name(DCLINE_FILE) {
-        Ok(dcline_file) => read_dcline_file(dcline_file)
-            .map_err(|err| format_err!("dcline file read error: {}", err))?,
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("dcline file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("dcline file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!(
-                    "dcline file unsupported archive error: {}",
-                    err
-                ));
-            }
-            ZipError::FileNotFound => Vec::default(),
-        },
-    };
-
-    let readme = match zip_archive.by_name(README_FILE) {
-        Ok(readme_file) => Some(read_to_string(readme_file)?),
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("readme file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("readme file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!(
-                    "readme file unsupported archive error: {}",
-                    err
-                ));
-            }
-            ZipError::FileNotFound => None,
-        },
-    };
-
-    let license = match zip_archive.by_name(LICENSE_FILE) {
-        Ok(license_file) => Some(read_to_string(license_file)?),
-        Err(zip_err) => match zip_err {
-            ZipError::Io(err) => {
-                return Err(format_err!("license file I/O error: {}", err));
-            }
-            ZipError::InvalidArchive(err) => {
-                return Err(format_err!("license file invalid archive error: {}", err));
-            }
-            ZipError::UnsupportedArchive(err) => {
-                return Err(format_err!(
-                    "license file unsupported archive error: {}",
-                    err
-                ));
-            }
-            ZipError::FileNotFound => None,
-        },
-    };
-
-    Ok((case, bus, gen, branch, gencost, dcline, readme, license))
+    Ok((
+        case.unwrap(),
+        bus,
+        gen,
+        branch,
+        gencost,
+        dcline,
+        readme,
+        license,
+    ))
 }
 
 pub fn read_dir(

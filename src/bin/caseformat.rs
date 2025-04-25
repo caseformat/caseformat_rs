@@ -51,7 +51,7 @@ fn execute(cli: &Cli) -> Result<()> {
     let (case, bus, gen, branch, gencost, dcline, readme, license) = if is_case {
         let file = File::open(case_path).expect("Unable to open input file");
         let reader = BufReader::new(file);
-        caseformat::read_zip(reader)?
+        caseformat::read_tar(reader)?
     } else {
         caseformat::read_dir(case_path)?
     };
@@ -86,7 +86,7 @@ fn execute(cli: &Cli) -> Result<()> {
             }
             Some("case") | Some("zip") => {
                 let file = File::create(&cli.output)?;
-                caseformat::write_zip(
+                caseformat::write_tar(
                     file, &case, &bus, &gen, &branch, &gencost, &dcline, readme, license,
                 )?;
             }

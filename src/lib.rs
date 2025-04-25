@@ -38,8 +38,8 @@ pub use gen::Gen;
 pub use gencost::GenCost;
 pub use gencost::{POLYNOMIAL, PW_LINEAR};
 pub use mpc::write_mpc;
-pub use read::{read_dir, read_zip};
-pub use write::{write_dir, write_zip};
+pub use read::{read_dir, read_tar};
+pub use write::{write_dir, write_tar};
 
 #[cfg(feature = "dataset")]
 pub mod soa {
@@ -61,6 +61,9 @@ pub mod builder {
     pub use crate::gen::{GenBuilder, GenBuilderError};
     pub use crate::gencost::{GenCostBuilder, GenCostBuilderError};
 }
+
+#[cfg(any(feature = "ieee14", feature = "gs4"))]
+pub mod testcase;
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;

@@ -1,15 +1,36 @@
 use anyhow::{format_err, Result};
-use std::io::{Seek, Write};
+use std::io::Write;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, fs::File};
-use time::OffsetDateTime;
-use zip::write::FileOptions;
-use zip::{CompressionMethod, DateTime};
 
 use crate::read::*;
 use crate::{Branch, Bus, Case, DCLine, Gen, GenCost};
 
-pub fn write_zip<W>(
+macro_rules! append {
+    ($ar:expr, $records:expr, $path:expr, $mtime:expr) => {
+        if !$records.is_empty() {
+            let mut wtr = csv::Writer::from_writer(vec![]);
+            for record in $records {
+                wtr.serialize(record)?;
+            }
+            wtr.flush()?;
+
+            let data = wtr.into_inner()?;
+
+            let mut header = tar::Header::new_gnu();
+            header.set_path($path)?;
+            header.set_mode(0o664);
+            header.set_mtime($mtime);
+            header.set_size(data.len() as u64);
+            header.set_cksum();
+
+            $ar.append(&header, data.as_slice())?;
+        }
+    };
+}
+
+pub fn write_tar<W>(
     writer: W,
     case: &Case,
     bus: &[Bus],
@@ -21,70 +42,46 @@ pub fn write_zip<W>(
     license: Option<String>,
 ) -> Result<W>
 where
-    W: Write + Seek,
+    W: Write,
 {
-    let mut ar = zip::ZipWriter::new(writer);
+    let mut ar = tar::Builder::new(writer);
 
-    let now_utc = OffsetDateTime::now_utc();
-    let now_dt = DateTime::try_from(now_utc)?;
+    let since_epoch = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    let mtime = since_epoch.as_secs();
 
-    let options = FileOptions::default()
-        .compression_method(CompressionMethod::Deflated)
-        .unix_permissions(0o664)
-        .last_modified_time(now_dt);
-
-    ar.start_file(CASE_FILE, options)?;
-    ar.write_all(
-        &write_case(Vec::default(), case)
-            .map_err(|err| format_err!("case file write error: {}", err))?,
-    )?;
-
-    if !bus.is_empty() {
-        ar.start_file(BUS_FILE, options)?;
-        ar.write_all(
-            &write_bus(Vec::default(), bus)
-                .map_err(|err| format_err!("bus file write error: {}", err))?,
-        )?;
-    }
-    if !gen.is_empty() {
-        ar.start_file(GEN_FILE, options)?;
-        ar.write_all(
-            &write_gen(Vec::default(), gen)
-                .map_err(|err| format_err!("gen file write error: {}", err))?,
-        )?;
-    }
-    if !branch.is_empty() {
-        ar.start_file(BRANCH_FILE, options)?;
-        ar.write_all(
-            &write_branch(Vec::default(), branch)
-                .map_err(|err| format_err!("branch file write error: {}", err))?,
-        )?;
-    }
-    if !gencost.is_empty() {
-        ar.start_file(GENCOST_FILE, options)?;
-        ar.write_all(
-            &write_gencost(Vec::default(), gencost)
-                .map_err(|err| format_err!("gencost file write error: {}", err))?,
-        )?;
-    }
-    if !dcline.is_empty() {
-        ar.start_file(DCLINE_FILE, options)?;
-        ar.write_all(
-            &write_dcline(Vec::default(), dcline)
-                .map_err(|err| format_err!("dcline file write error: {}", err))?,
-        )?;
-    }
+    append!(ar, &vec![case], CASE_FILE, mtime);
+    append!(ar, bus, BUS_FILE, mtime);
+    append!(ar, gen, GEN_FILE, mtime);
+    append!(ar, branch, BRANCH_FILE, mtime);
+    append!(ar, gencost, GENCOST_FILE, mtime);
+    append!(ar, dcline, DCLINE_FILE, mtime);
 
     if let Some(readme) = readme {
-        ar.start_file(README_FILE, options)?;
-        ar.write_all(readme.as_bytes())?;
+        let data = readme.as_bytes();
+
+        let mut header = tar::Header::new_gnu();
+        header.set_path(README_FILE)?;
+        header.set_mode(0o664);
+        header.set_mtime(mtime);
+        header.set_size(data.len() as u64);
+        header.set_cksum();
+
+        ar.append(&header, data)?;
     }
     if let Some(license) = license {
-        ar.start_file(LICENSE_FILE, options)?;
-        ar.write_all(license.as_bytes())?;
-    }
+        let data = license.as_bytes();
 
-    Ok(ar.finish()?)
+        let mut header = tar::Header::new_gnu();
+        header.set_path(LICENSE_FILE)?;
+        header.set_mode(0o664);
+        header.set_mtime(mtime);
+        header.set_size(data.len() as u64);
+        header.set_cksum();
+
+        ar.append(&header, data)?;
+    }
+    ar.finish()?;
+    Ok(ar.into_inner()?)
 }
 
 pub fn write_dir(
